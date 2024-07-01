@@ -25,20 +25,20 @@ namespace Atmometer
         static float get_module_humidity(TwoWire &i2cHandle, uint8_t address);
     };
 
-    float get_module_humidity(TwoWire &i2cHandle, uint8_t address)
-    {
-        uint64_t data = BasicModule::get_module_value_1(i2cHandle, address);
-
-        return (float)data / 1000;
-    }
-
-    float get_module_temperature(TwoWire &i2cHandle, uint8_t address)
+    float DHT11Module::get_module_humidity(TwoWire &i2cHandle, uint8_t address)
     {
         uint8_t error;
         uint64_t value = 0;
         error = simple_read(i2cHandle, address, DHT11_Register::module_VALUE_2_MSB1, &value);
-
+        // TODO: HANDLE NEGAIVE TEMPERATURE
         return (float)value / 1000;
+    }
+
+    float DHT11Module::get_module_temperature(TwoWire &i2cHandle, uint8_t address)
+    {
+        uint64_t data = BasicModule::get_module_value_1(i2cHandle, address);
+        // TODO: HANDLE NEGAIVE TEMPERATURE
+        return (float)data / 1000;
     }
 }
 
