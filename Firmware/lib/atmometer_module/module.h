@@ -7,6 +7,7 @@ class Socket
 {
 private:
     uint8_t m_SocketID = 0;
+
     uint8_t m_ModuleType = 0;
     uint32_t m_ModuleID = 0;
 

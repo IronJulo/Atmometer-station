@@ -12,12 +12,26 @@ namespace Atmometer
         ~MH_Z19Module() = default;
 
         static float get_module_co2_ppm(TwoWire &i2cHandle, uint8_t address);
+        static float raw_to_ppm(uint32_t raw);
+
+        static uint32_t get_raw_module_co2_ppm(TwoWire &i2cHandle, uint8_t address);
     };
 
     float MH_Z19Module::get_module_co2_ppm(TwoWire &i2cHandle, uint8_t address)
     {
         uint64_t data = BasicModule::get_module_value_1(i2cHandle, address);
-        return (float)data;
+        return raw_to_ppm(data);
+    }
+
+    float MH_Z19Module::raw_to_ppm(uint32_t raw)
+    {
+        return (float)raw;
+    }
+
+    uint32_t MH_Z19Module::get_raw_module_co2_ppm(TwoWire &i2cHandle, uint8_t address)
+    {
+        uint64_t data = BasicModule::get_module_value_1(i2cHandle, address);
+        return data;
     }
 }
 

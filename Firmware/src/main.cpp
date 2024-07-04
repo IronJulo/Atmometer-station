@@ -7,6 +7,7 @@
 #include "atmometer_basic_module_driver.h"
 #include "atmometer_dht11_module_driver.h"
 #include "atmometer_mh_z19_module_driver.h"
+#include "atmometer_pms5003_module_driver.h"
 #include "module.h"
 #include "module_available.h"
 
@@ -25,8 +26,10 @@ void mapSensorLayout();
 void printSensorLayout();
 void printSocketGrid();
 void printSocket0Data();
+uint32_t get_sensor_raw_value(TwoWire &i2cHandle, uint8_t address);
 
 Socket sockets[MAX_SOCKET_COUNT];
+uint32_t sensor_values[MAX_SOCKET_COUNT];
 
 void setup()
 {
@@ -52,53 +55,10 @@ void setup()
 void loop()
 {
 	mapSensorLayout();
-	// printSocketGrid();
+	printSocketGrid();
 
-	uint32_t sensor_values[MAX_SOCKET_COUNT] = {0};
-
-	for (int i = 0; i < MAX_SOCKET_COUNT; i++)
-	{
-		if (sockets[i].isModulePresent())
-		{
-			switch (sockets[i].getModuleType())
-			{
-			case MODULE_TYPE_DHT11_T:
-				// DHT11 module for humidity
-				sensor_values[i] = Atmometer::DHT11Module::get_module_temperature(Wire, sockets[i].getSocketID() + 1);
-				break;
-			case MODULE_TYPE_DHT11_H:
-				// DHT11 module for temperature
-				sensor_values[i] = Atmometer::DHT11Module::get_module_humidity(Wire, sockets[i].getSocketID() + 1);
-				break;
-			case MODULE_TYPE_MH_Z19:
-				// MH-Z19 module for CO2
-				sensor_values[i] = Atmometer::MH_Z19Module::get_module_co2_ppm(Wire, sockets[i].getSocketID() + 1);
-				break;
-			}
-		}
-
-		Serial.println("waiting");
-		delay(2000);
-	}
-}
-
-void printSocket0Data()
-{
-	if (sockets[0].isModulePresent())
-	{
-		Serial.print("Module ID: ");
-		Serial.println(sockets[0].getModuleID());
-		Serial.print("Module type: ");
-		Serial.println(sockets[0].getModuleType());
-		Serial.print("Module temperature: ");
-		Serial.println(Atmometer::DHT11Module::get_module_temperature(Wire, 0x01));
-		Serial.print("Module HUMIDITY: ");
-		Serial.println(Atmometer::DHT11Module::get_module_humidity(Wire, 0x01));
-	}
-	else
-	{
-		Serial.println("No module present in Socket 0");
-	}
+	Serial.println("waiting");
+	delay(2000);
 }
 
 void printSensorLayout()
@@ -109,7 +69,6 @@ void printSensorLayout()
 		{
 			continue;
 		}
-
 		Serial.print("Socket: ");
 		Serial.println(i);
 		Serial.print("Module ID: ");
@@ -140,25 +99,62 @@ void mapSensorLayout()
 			sockets[address].setModuleID(deviceId);
 			sockets[address].setModuleType(deviceType);
 			sockets[address].setModulePresent(true);
-		}
-		/*else
-		{
-			Serial.print("No module: ");
-			Serial.print(address + 1);
-			Serial.print("   ERROR: ");
-			Serial.println(static_cast<unsigned long long>(error));
 
+			sensor_values[address] = get_sensor_raw_value(Wire, address + 1);
+		}
+		else
+		{
 			sockets[address].setModuleID(0);
 			sockets[address].setModuleType(0);
 			sockets[address].setModulePresent(false);
-		}*/
+			sensor_values[address] = 0;
+		}
 		delay(100);
+	}
+}
+
+uint32_t get_sensor_raw_value(TwoWire &i2cHandle, uint8_t address)
+{
+	switch (sockets[address - 1].getModuleType())
+	{
+	case MODULE_TYPE_DHT11_T:
+		// DHT11 module for humidity
+		return Atmometer::DHT11Module::get_raw_module_temperature(i2cHandle, address);
+		break;
+	case MODULE_TYPE_DHT11_H:
+		// DHT11 module for temperature
+		return Atmometer::DHT11Module::get_raw_module_humidity(i2cHandle, address);
+		break;
+	case MODULE_TYPE_MH_Z19:
+		// MH-Z19 module for CO2
+		return Atmometer::MH_Z19Module::get_raw_module_co2_ppm(i2cHandle, address);
+		break;
+	case MODULE_TYPE_PMS5003_1_0_um:
+		// PMS7003 module for 1.0 um particles
+		return Atmometer::PMS5003Module::get_raw_module_1_0_um(i2cHandle, address);
+		break;
+	case MODULE_TYPE_PMS5003_2_5_um:
+		// PMS7003 module for 2.5 um particles
+		return Atmometer::PMS5003Module::get_raw_module_2_5_um(i2cHandle, address);
+		break;
+	case MODULE_TYPE_PMS5003_10_um:
+		// PMS7003 module for 10 um particles
+		return Atmometer::PMS5003Module::get_raw_module_10_um(i2cHandle, address);
+		break;
+	case MODULE_TYPE_DHT22_T:
+		// DHT22 module for temperature
+	case MODULE_TYPE_DHT22_H:
+		// DHT22 module for humidity
+	case MODULE_TYPE_NOT_CONFIGURED:
+	default:
+		return 0;
+		break;
 	}
 }
 
 void printSocketGrid()
 {
-	const int rows = 4;
+	const int rows = 1; // 4;
 	const int cols = 3;
 	int col = 0;
 	const int cellWidth = 20;
@@ -170,9 +166,13 @@ void printSocketGrid()
 	{
 		oss << "|               |               |               |\n";
 		oss << "|               |               |               |\n";
-		oss << "|Addr: " << std::setw(9) << std::left << (col * cols) + 0;
-		oss << "|Addr: " << std::setw(9) << std::left << (col * cols) + 1;
-		oss << "|Addr: " << std::setw(9) << std::left << (col * cols) + 2;
+		oss << "|SoID: " << std::setw(9) << std::left << (col * cols) + 0;
+		oss << "|SoID: " << std::setw(9) << std::left << (col * cols) + 1;
+		oss << "|SoID: " << std::setw(9) << std::left << (col * cols) + 2;
+		oss << "|\n";
+		oss << "|Val : " << std::setw(9) << std::left << static_cast<unsigned long long>(sensor_values[(col * cols) + 0]);
+		oss << "|Val : " << std::setw(9) << std::left << static_cast<unsigned long long>(sensor_values[(col * cols) + 1]);
+		oss << "|Val : " << std::setw(9) << std::left << static_cast<unsigned long long>(sensor_values[(col * cols) + 2]);
 		oss << "|\n";
 		oss << "|Type: " << std::setw(9) << std::left << static_cast<unsigned long long>(sockets[(col * cols) + 0].getModuleType());
 		oss << "|Type: " << std::setw(9) << std::left << static_cast<unsigned long long>(sockets[(col * cols) + 1].getModuleType());
