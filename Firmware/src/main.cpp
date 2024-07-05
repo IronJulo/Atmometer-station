@@ -8,8 +8,11 @@
 #include "atmometer_dht11_module_driver.h"
 #include "atmometer_mh_z19_module_driver.h"
 #include "atmometer_pms5003_module_driver.h"
+#include "protocol.h"
 #include "module.h"
 #include "module_available.h"
+
+#include <WriteBufferFixedSize.h>
 
 #define I2C_SCL 9
 #define I2C_SDA 8
@@ -22,6 +25,8 @@
 
 #define MAX_SOCKET_COUNT 16
 
+#define DEVICE_ID 0x01
+
 void mapSensorLayout();
 void printSensorLayout();
 void printSocketGrid();
@@ -30,6 +35,11 @@ uint32_t get_sensor_raw_value(TwoWire &i2cHandle, uint8_t address);
 
 Socket sockets[MAX_SOCKET_COUNT];
 uint32_t sensor_values[MAX_SOCKET_COUNT];
+
+com::epitech::atmos::protobuf::Socket_layout_packet<64> socketLayoutPacket;
+com::epitech::atmos::protobuf::Data_packet<64> dataPacket;
+
+EmbeddedProto::WriteBufferFixedSize<256> writeBuffer;
 
 void setup()
 {
@@ -50,6 +60,8 @@ void setup()
 	pinMode(SOCKET_VD_INPUT, OUTPUT);
 	digitalWrite(SOCKET_VD_INPUT, HIGH);
 	delay(1000);
+
+	mapSensorLayout();
 }
 
 void loop()
@@ -187,4 +199,46 @@ void printSocketGrid()
 	}
 
 	Serial.println(oss.str().c_str());
+}
+
+void fillSocketLayoutPacket()
+{
+	for (int i = 0; i < MAX_SOCKET_COUNT; i++)
+	{
+		socketLayoutPacket.mutable_socket_data()[i].clear();
+		socketLayoutPacket.mutable_socket_data()[i].set_socket_id(i);
+		if (!sockets[i].isModulePresent())
+		{
+			socketLayoutPacket.mutable_socket_data()[i].set_sensor_id(0XFFFFFFF);
+			socketLayoutPacket.mutable_socket_data()[i].set_sensor_type(0XFFFFFFF);
+		}
+		else
+		{
+			socketLayoutPacket.mutable_socket_data()[i].set_sensor_id(sockets[i].getModuleID());
+			socketLayoutPacket.mutable_socket_data()[i].set_sensor_type(sockets[i].getModuleType());
+		}
+	}
+}
+
+void fillDataPacket()
+{
+	dataPacket.clear_sensor_data();
+
+	dataPacket.mutable_header().set_device_id(DEVICE_ID);
+	dataPacket.mutable_header().set_packet_crc(0);
+
+	for (int i = 0; i < MAX_SOCKET_COUNT; i++)
+		dataPacket.add_sensor_data(sensor_values[i]);
+}
+
+uint16_t computeCRC(uint8_t *data, uint8_t length)
+{
+	uint16_t crc = 0;
+
+	for (uint8_t i = 0; i < length; i++)
+	{
+		crc += data[i];
+	}
+
+	return crc;
 }
