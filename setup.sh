@@ -6,7 +6,7 @@ cd EmbeddedProto
 python3 setup.py
 cd ..
 
-mkdir Firmware/lib/embeddedproto
+mkdir -p Firmware/lib/embeddedproto
 
 cp EmbeddedProto/src/* Firmware/lib/embeddedproto
 
